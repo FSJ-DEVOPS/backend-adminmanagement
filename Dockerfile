@@ -1,10 +1,15 @@
 # Stage 1: Build the dependency (sellerprofile) to a local repository.
 FROM maven:3.9.6-eclipse-temurin-21 AS dependency-builder
 
-# Clone the sellerprofile repository and build it.
-# YOU MUST replace 'your-github-username' with your actual GitHub username and 'sellerprofile-repo' with the repository name for sellerprofile.
+# Set the working directory
 WORKDIR /usr/src/app
-RUN git clone https://github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
+
+# Clone the private sellerprofile repository using the PAT for authentication.
+# WARNING: Directly pasting your token into the Dockerfile is a security risk as it will be stored in the image history.
+# The URL has been updated with your provided GitHub repository URL and PAT.
+RUN git clone https://FSJ-DEVOPS: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@github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
+
+# Change into the cloned repository and build it.
 WORKDIR /usr/src/app/sellerprofile
 RUN mvn clean install
 
