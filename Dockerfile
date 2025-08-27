@@ -4,10 +4,9 @@ FROM maven:3.9.6-eclipse-temurin-21 AS dependency-builder
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Clone the private sellerprofile repository using the PAT for authentication.
-# WARNING: Directly pasting your token into the Dockerfile is a security risk as it will be stored in the image history.
-# The URL has been updated with your provided GitHub repository URL and PAT.
-RUN git clone https://FSJ-DEVOPS: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@github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
+# Define a build argument for the GitHub Personal Access Token
+# Note: The PAT is hardcoded here, which is a security risk.
+RUN git clone https://FSJ-DEVOPS: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@github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
 
 # Change into the cloned repository and build it.
 WORKDIR /usr/src/app/sellerprofile
