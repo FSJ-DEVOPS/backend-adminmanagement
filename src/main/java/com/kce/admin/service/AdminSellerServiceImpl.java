@@ -17,6 +17,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.kce.admin.dto.BookDTO; // Corrected import to use local DTO
 import com.kce.admin.dto.DashboardSellerDTO;
 import com.kce.admin.dto.SellerAnalyticsDTO;
 import com.kce.admin.dto.SellerOrderDTO;
@@ -25,7 +26,6 @@ import com.kce.admin.feign.OrderServiceFeign;
 import com.kce.admin.feign.SellerProfileFeign;
 import com.kce.admin.feign.UserAuthClient;
 import com.kce.admin.model.DailyStat;
-import com.shopverse.sellerprofile.entity.Book;
 
 @Service
 public class AdminSellerServiceImpl implements AdminSellerService {
@@ -103,7 +103,7 @@ public class AdminSellerServiceImpl implements AdminSellerService {
             logger.error("❌ Seller profile not found for email: {}", user.getEmail());
             throw new RuntimeException("Seller profile not found for email: " + user.getEmail());
         }
-        logger.debug("✅ Seller profile found - sellerId: {}, storeName: {}", profile.getSellerId(), profile.getStoreName());
+        logger.debug("✅ Seller profile found - sellerId: {}, storeName: {}, sellerName: {}", profile.getSellerId(), profile.getStoreName());
 
         try {
 
@@ -154,7 +154,7 @@ public class AdminSellerServiceImpl implements AdminSellerService {
             analyticsDTO.setSellerPhone(profile.getSellerPhone());
             analyticsDTO.setAddress(profile.getAddress());
 
-            List<Book> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
+            List<BookDTO> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
             analyticsDTO.setUploadedProducts(uploadedBooks != null ? uploadedBooks.size() : 0);
 
             analyticsDTO.setSellerPhoto(profile.getSellerPhoto());
