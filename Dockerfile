@@ -4,12 +4,8 @@ FROM maven:3.9.6-eclipse-temurin-21 AS dependency-builder
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Define a build argument for the GitHub Personal Access Token
-ARG GITHUB_PAT
-
-# Clone the private sellerprofile repository using the PAT for authentication.
-# The token is passed as a build argument, not stored in the image.
-RUN git clone https://FSJ-DEVOPS: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@github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
+# Clone the public sellerprofile repository. No authentication token is needed.
+RUN git clone https://github.com/FSJ-DEVOPS/backend-sellerprofile.git sellerprofile
 
 # Change into the cloned repository and build it.
 WORKDIR /usr/src/app/sellerprofile
