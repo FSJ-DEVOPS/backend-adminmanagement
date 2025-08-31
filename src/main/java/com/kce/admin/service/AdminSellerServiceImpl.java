@@ -85,61 +85,85 @@ public class AdminSellerServiceImpl implements AdminSellerService {
     public SellerAnalyticsDTO getSellerAnalytics(String sellerId) {
         logger.debug("🔍 Starting getSellerAnalytics for sellerId: {}", sellerId);
 
-        logger.debug("📞 Calling UserAuthClient.getUserByUniqueId() for sellerId: {}", sellerId);
-        UserDTO user = userAuthClient.getUserByUniqueId(sellerId);
-        logger.debug("📋 UserAuthClient response - user: {}", user);
-
-        if (user == null) {
-            logger.error("❌ User not found for sellerId: {}", sellerId);
-            throw new RuntimeException("User not found for sellerId: " + sellerId);
-        }
-        logger.debug("✅ User found - email: {}, username: {}", user.getEmail(), user.getUsername());
-
-        logger.debug("📞 Calling SellerProfileFeign.getSellerProfileByEmail() for email: {}", user.getEmail());
-        SellerAnalyticsDTO profile = sellerProfileFeign.getSellerProfileByEmail(user.getEmail());
-        logger.debug("📋 SellerProfileFeign response - profile: {}", profile);
-
-        if (profile == null) {
-            logger.error("❌ Seller profile not found for email: {}", user.getEmail());
-            throw new RuntimeException("Seller profile not found for email: " + user.getEmail());
-        }
-        logger.debug("✅ Seller profile found - sellerId: {}, storeName: {}, sellerName: {}", profile.getSellerId(), profile.getStoreName());
-
         try {
+            logger.debug("📞 Calling UserAuthClient.getUserByUniqueId() for sellerId: {}", sellerId);
+            UserDTO user = userAuthClient.getUserByUniqueId(sellerId);
+            logger.debug("📋 UserAuthClient response - user: {}", user);
+
+            if (user == null) {
+                logger.error("❌ User not found for sellerId: {}", sellerId);
+                throw new RuntimeException("User not found for sellerId: " + sellerId);
+            }
+            logger.debug("✅ User found - email: {}, username: {}", user.getEmail(), user.getUsername());
+
+            logger.debug("📞 Calling SellerProfileFeign.getSellerProfileByEmail() for email: {}", user.getEmail());
+            SellerAnalyticsDTO profile = null;
+            try {
+                profile = sellerProfileFeign.getSellerProfileByEmail(user.getEmail());
+                logger.debug("📋 SellerProfileFeign response - profile: {}", profile);
+            } catch (Exception e) {
+                logger.warn("⚠️ Failed to fetch seller profile, creating default: {}", e.getMessage());
+                profile = new SellerAnalyticsDTO();
+                profile.setSellerId(sellerId);
+                profile.setStoreName("Unknown Store");
+            }
+
+            if (profile == null) {
+                logger.warn("⚠️ Seller profile is null, creating default profile");
+                profile = new SellerAnalyticsDTO();
+                profile.setSellerId(sellerId);
+                profile.setStoreName("Unknown Store");
+            }
+            logger.debug("✅ Seller profile processed - sellerId: {}, storeName: {}", profile.getSellerId(), profile.getStoreName());
 
             logger.debug("📞 Calling OrderServiceFeign.getOrdersBySellerId() for sellerId: {}", sellerId);
-            List<SellerOrderDTO> orders = orderServiceFeign.getOrdersBySellerId(sellerId);
-            logger.debug("📋 OrderServiceFeign response - orders count: {}, orders: {}",
-                    orders != null ? orders.size() : 0, orders);
+            List<SellerOrderDTO> orders = null;
+            try {
+                orders = orderServiceFeign.getOrdersBySellerId(sellerId);
+                logger.debug("📋 OrderServiceFeign response - orders count: {}, orders: {}",
+                        orders != null ? orders.size() : 0, orders);
+            } catch (Exception e) {
+                logger.warn("⚠️ Failed to fetch orders, using empty list: {}", e.getMessage());
+                orders = new ArrayList<>();
+            }
+
+            if (orders == null) {
+                orders = new ArrayList<>();
+            }
 
             // Enrich orders with usernames
             logger.debug("🔧 Enriching orders with usernames");
-            if (orders != null && !orders.isEmpty()) {
-                List<UserDTO> allUsers = userAuthClient.getAllUsers();
+            if (!orders.isEmpty()) {
+                try {
+                    List<UserDTO> allUsers = userAuthClient.getAllUsers();
+                    if (allUsers != null) {
+                        for (SellerOrderDTO order : orders) {
+                            if (order != null && order.getUserId() != null) {
+                                // Find username by userId
+                                UserDTO orderUser = allUsers.stream()
+                                        .filter(u -> u != null && order.getUserId().equals(String.valueOf(u.getId())))
+                                        .findFirst()
+                                        .orElse(null);
 
-                for (SellerOrderDTO order : orders) {
-                    if (order.getUserId() != null) {
-                        // Find username by userId
-                        UserDTO orderUser = allUsers.stream()
-                                .filter(u -> order.getUserId().equals(String.valueOf(u.getId())))
-                                .findFirst()
-                                .orElse(null);
-
-                        if (orderUser != null) {
-                            order.setUsername(orderUser.getUsername());
-                            order.setUserEmail(orderUser.getEmail());
-                            logger.debug("✅ Set username '{}' and email '{}' for userId '{}'",
-                                    orderUser.getUsername(), orderUser.getEmail(), order.getUserId());
-                        } else {
-                            order.setUsername("Unknown User");
-                            order.setUserEmail("No email");
-                            logger.warn("⚠️ Could not find username for userId: {}", order.getUserId());
+                                if (orderUser != null) {
+                                    order.setUsername(orderUser.getUsername() != null ? orderUser.getUsername() : "Unknown User");
+                                    order.setUserEmail(orderUser.getEmail() != null ? orderUser.getEmail() : "No email");
+                                    logger.debug("✅ Set username '{}' and email '{}' for userId '{}'",
+                                            orderUser.getUsername(), orderUser.getEmail(), order.getUserId());
+                                } else {
+                                    order.setUsername("Unknown User");
+                                    order.setUserEmail("No email");
+                                    logger.warn("⚠️ Could not find username for userId: {}", order.getUserId());
+                                }
+                            } else if (order != null) {
+                                order.setUsername("No User ID");
+                                order.setUserEmail("No email");
+                                logger.warn("⚠️ Order {} has null userId", order.getOrderId());
+                            }
                         }
-                    } else {
-                        order.setUsername("No User ID");
-                        order.setUserEmail("No email");
-                        logger.warn("⚠️ Order {} has null userId", order.getOrderId());
                     }
+                } catch (Exception e) {
+                    logger.warn("⚠️ Failed to enrich orders with usernames: {}", e.getMessage());
                 }
             }
             logger.debug("✅ Completed username enrichment for orders");
@@ -151,11 +175,19 @@ public class AdminSellerServiceImpl implements AdminSellerService {
             analyticsDTO.setStoreName(profile.getStoreName());
             analyticsDTO.setSellerName(user.getUsername());
             analyticsDTO.setSellerEmail(user.getEmail());
-            analyticsDTO.setSellerPhone(profile.getSellerPhone());
-            analyticsDTO.setAddress(profile.getAddress());
+            analyticsDTO.setSellerPhone(profile.getSellerPhone() != null ? profile.getSellerPhone() : "N/A");
+            analyticsDTO.setAddress(profile.getAddress() != null ? profile.getAddress() : "N/A");
 
-            List<BookDTO> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
-            analyticsDTO.setUploadedProducts(uploadedBooks != null ? uploadedBooks.size() : 0);
+            // Safely fetch uploaded books count
+            int uploadedProducts = 0;
+            try {
+                List<BookDTO> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
+                uploadedProducts = uploadedBooks != null ? uploadedBooks.size() : 0;
+            } catch (Exception e) {
+                logger.warn("⚠️ Failed to fetch books for sellerId: {}, error: {}. Setting count to 0.", sellerId, e.getMessage());
+                uploadedProducts = 0;
+            }
+            analyticsDTO.setUploadedProducts(uploadedProducts);
 
             analyticsDTO.setSellerPhoto(profile.getSellerPhoto());
             logger.debug("✅ Populated basic seller info - sellerId: {}, storeName: {}, sellerName: {}",
@@ -172,20 +204,34 @@ public class AdminSellerServiceImpl implements AdminSellerService {
 
             logger.debug("🔧 Calculating daily sales summary");
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-
-            Map<LocalDate, List<SellerOrderDTO>> salesByDate = (orders != null) ?
+            Map<LocalDate, List<SellerOrderDTO>> salesByDate = (orders != null && !orders.isEmpty()) ?
                     orders.stream()
-                            .filter(order -> order.getOrderDate() != null)
+                            .filter(order -> order != null && order.getOrderDate() != null && !order.getOrderDate().trim().isEmpty())
                             .collect(Collectors.groupingBy(order -> {
                                 try {
-
-                                    String dateStr = order.getOrderDate().substring(0, 10);
+                                    String dateStr = order.getOrderDate().trim();
+                                    // Extract date part if it's longer than 10 characters (might have time)
+                                    if (dateStr.length() > 10) {
+                                        dateStr = dateStr.substring(0, 10);
+                                    }
                                     logger.debug("🗓️ Parsing date: {}", dateStr);
-                                    return LocalDate.parse(dateStr, formatter);
+                                    
+                                    // Try different formats
+                                    try {
+                                        return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+                                    } catch (Exception e1) {
+                                        try {
+                                            return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                                        } catch (Exception e2) {
+                                            try {
+                                                return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+                                            } catch (Exception e3) {
+                                                return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+                                            }
+                                        }
+                                    }
                                 } catch (Exception e) {
-                                    logger.warn("⚠️ Failed to parse date: {}, error: {}", order.getOrderDate(), e.getMessage());
-
+                                    logger.warn("⚠️ Failed to parse date: {}, error: {}. Using current date.", order.getOrderDate(), e.getMessage());
                                     return LocalDate.now();
                                 }
                             })) : new HashMap<>();
@@ -202,27 +248,23 @@ public class AdminSellerServiceImpl implements AdminSellerService {
 
         } catch(Exception e) {
             logger.error("❌ Error in getSellerAnalytics for sellerId: {}, error: {}", sellerId, e.getMessage(), e);
-            throw new RuntimeException("Error in analytics "+ e);
+            // Return a basic fallback DTO instead of throwing
+            SellerAnalyticsDTO fallbackDTO = new SellerAnalyticsDTO();
+            fallbackDTO.setSellerId(sellerId);
+            fallbackDTO.setStoreName("Error Loading Store");
+            fallbackDTO.setSellerName("Error Loading Seller");
+            fallbackDTO.setSellerEmail("error@example.com");
+            fallbackDTO.setSellerPhone("N/A");
+            fallbackDTO.setAddress("N/A");
+            fallbackDTO.setUploadedProducts(0);
+            fallbackDTO.setOrders(new ArrayList<>());
+            fallbackDTO.setTotalSales(0.0);
+            fallbackDTO.setReturned(0);
+            fallbackDTO.setCancelled(0);
+            fallbackDTO.setSalesSummary(new ArrayList<>());
+            return fallbackDTO;
         }
     }
-    private String getSellerEmailById(String sellerId) {
-
-        UserDTO user = userAuthClient.getAllUsers().stream()
-                .filter(u -> sellerId.equals(u.getUniqueId()))
-                .findFirst()
-                .orElse(null);
-        return (user != null) ? user.getEmail() : null;
-    }
-
-    //    @Override
-//    public Optional<Seller> getSellerById(String id) {
-//        return sellerRepository.findById(id);
-//    }
-//
-    //@Override
-    //public Seller saveSeller(Seller seller) {
-    //   return sellerRepository.save(seller);
-    // }
     @Override
     public List<UserDTO> fetchAllSellers() {
         try {
@@ -237,7 +279,7 @@ public class AdminSellerServiceImpl implements AdminSellerService {
 
             // Filter out sellers already present in MongoDB
             return allSellers.stream()
-                    .filter(seller -> !existingSellerIds.contains(seller.getId()))
+                    .filter(seller -> !existingSellerIds.contains(String.valueOf(seller.getId())))
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
