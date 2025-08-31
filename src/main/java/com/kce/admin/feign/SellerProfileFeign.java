@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import java.util.List;
 
-@FeignClient(name = "sellerprofile", configuration = FeignConfig.class)
+@FeignClient(name = "sellerprofile", url = "https://backend-sellerprofile.onrender.com", configuration = FeignConfig.class)
 public interface SellerProfileFeign {
     @GetMapping("/api/seller/profile/{email}")
     SellerAnalyticsDTO getSellerProfileByEmail(@PathVariable("email") String email);

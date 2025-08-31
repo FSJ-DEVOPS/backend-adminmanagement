@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
-@FeignClient(name = "orderservice", configuration = FeignConfig.class)
+@FeignClient(name = "orderservice", url = "https://backend-orderservice.onrender.com", configuration = FeignConfig.class)
 public interface OrderServiceFeign {
     @GetMapping("/api/order/seller/{sellerId}")
     List<SellerOrderDTO> getOrdersBySellerId(@PathVariable("sellerId") String sellerId);

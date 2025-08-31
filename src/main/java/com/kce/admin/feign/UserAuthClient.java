@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
-@FeignClient(name = "userauth", configuration = FeignConfig.class)
+@FeignClient(name = "userauth", url = "https://userauth-sl4t.onrender.com", configuration = FeignConfig.class)
 public interface UserAuthClient {
 
     @GetMapping("/api/admin/users")

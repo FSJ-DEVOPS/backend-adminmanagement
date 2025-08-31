@@ -6,7 +6,7 @@ import com.kce.admin.dto.SystemLogDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 
-@FeignClient(name = "systemlogs")
+@FeignClient(name = "systemlogs", url = "https://backend-systemlogs.onrender.com")
 public interface SystemLogClient {
 
     @PostMapping("/api/adminlogs/logs")
