@@ -17,7 +17,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.kce.admin.dto.BookDTO; // Corrected import to use local DTO
 import com.kce.admin.dto.DashboardSellerDTO;
 import com.kce.admin.dto.SellerAnalyticsDTO;
 import com.kce.admin.dto.SellerOrderDTO;
@@ -181,8 +180,9 @@ public class AdminSellerServiceImpl implements AdminSellerService {
             // Safely fetch uploaded books count
             int uploadedProducts = 0;
             try {
-                List<BookDTO> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
+                List<Map<String, Object>> uploadedBooks = sellerProfileFeign.getBooksBySellerId(sellerId);
                 uploadedProducts = uploadedBooks != null ? uploadedBooks.size() : 0;
+                logger.debug("✅ Successfully fetched {} books for sellerId: {}", uploadedProducts, sellerId);
             } catch (Exception e) {
                 logger.warn("⚠️ Failed to fetch books for sellerId: {}, error: {}. Setting count to 0.", sellerId, e.getMessage());
                 uploadedProducts = 0;
