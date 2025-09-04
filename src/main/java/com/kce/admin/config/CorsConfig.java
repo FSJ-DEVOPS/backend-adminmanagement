@@ -18,6 +18,7 @@ public class CorsConfig {
         configuration.addAllowedOrigin("http://localhost:3000");     // React dev server
         configuration.addAllowedOrigin("https://shopverse-theta.vercel.app"); // Production domain
         configuration.addAllowedOriginPattern("https://*.vercel.app"); // All Vercel preview deployments
+        configuration.addAllowedOriginPattern("https://*.netlify.app"); // Netlify deployments
         
         // Allow all common HTTP methods
         configuration.addAllowedMethod("GET");
@@ -27,11 +28,17 @@ public class CorsConfig {
         configuration.addAllowedMethod("PATCH");
         configuration.addAllowedMethod("OPTIONS");
         
-        // Allow all headers
+        // Allow all headers including Authorization
         configuration.addAllowedHeader("*");
+        configuration.addAllowedHeader("Authorization");
+        configuration.addAllowedHeader("Content-Type");
+        configuration.addAllowedHeader("X-Requested-With");
         
         // Allow credentials (for authentication)
         configuration.setAllowCredentials(true);
+        
+        // Set max age for preflight requests (1 hour)
+        configuration.setMaxAge(3600L);
         
         // Apply to all endpoints
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
